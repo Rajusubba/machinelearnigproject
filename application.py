@@ -3,6 +3,7 @@ from flask import Flask, request, render_template
 from src.pipeline.predict_pipeline import PredictPipeline, CustomData
 
 application = Flask(__name__)
+
 app = application
 
 
