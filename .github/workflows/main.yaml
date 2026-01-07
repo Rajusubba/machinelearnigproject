@@ -5,12 +5,13 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: ${{ vars.MY_AWS_REGION }}
-  ECR_REPOSITORY: ${{ vars.MY_ECR_REPOSITORY }}
-  ECS_SERVICE: ${{ vars.MY_ECS_SERVICE }}
-  ECS_CLUSTER: ${{ vars.MY_ECS_CLUSTER }}
-  ECS_TASK_DEFINITION: ${{ vars.MY_ECS_TASK_DEFINITION }}
-  CONTAINER_NAME: ${{ vars.MY_CONTAINER_NAME }}
+  env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: studentperformance
+  ECS_CLUSTER: descriptive-deer-b5mwh9
+  ECS_SERVICE: machinelearningproject-service-5gipt9qd
+  CONTAINER_NAME: studentperformance
+  ECS_TASK_DEFINITION: aws/task-definition.json
 
 permissions:
   contents: read
