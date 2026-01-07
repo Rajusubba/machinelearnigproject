@@ -1,0 +1,148 @@
+name: CI/CD - Build, Test, Deploy (Staging -> Prod)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: studentperformance
+  ECS_CLUSTER: descriptive-deer-b5mwh9
+
+  # staging service
+  ECS_SERVICE_STAGING: machinelearningproject-service-5gipt9qd
+  ECS_TASK_DEFINITION_STAGING: aws/task-definition.json
+  CONTAINER_NAME: studentperformance
+
+  # prod service (create this in ECS)
+  ECS_SERVICE_PROD: machinelearningproject-prod-service
+  ECS_TASK_DEFINITION_PROD: aws/task-definition-prod.json
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI - Lint & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # optional dev deps:
+          pip install pytest ruff
+
+      - name: Lint (ruff)
+        run: |
+          ruff check . || true
+          # If you want lint failures to block the pipeline, remove "|| true"
+
+      - name: Run tests (pytest)
+        run: |
+          pytest -q || true
+          # If you want tests to block the pipeline, remove "|| true"
+
+  deploy-staging:
+    name: CD - Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: ci
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      - name: Build, tag, push image (SHA)
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Render task definition (staging)
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION_STAGING }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy to ECS (staging)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_STAGING }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  deploy-prod:
+    name: CD - Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-staging
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      - name: Re-tag staging image as "prod" (optional)
+        id: promote
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          SHA_TAG: ${{ github.sha }}
+          PROD_TAG: prod
+        run: |
+          docker pull $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$SHA_TAG
+          docker tag  $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$SHA_TAG \
+                     $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$PROD_TAG
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$PROD_TAG
+          echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$PROD_TAG" >> $GITHUB_OUTPUT
+
+      - name: Render task definition (prod)
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION_PROD }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.promote.outputs.image }}
+
+      - name: Deploy to ECS (prod)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_PROD }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
