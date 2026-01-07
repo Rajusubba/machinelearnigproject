@@ -5,12 +5,12 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: ${{ secrets.MY_AWS_REGION }}
-  ECR_REPOSITORY: ${{ secrets.MY_ECR_REPOSITORY }}
-  ECS_SERVICE: ${{ secrets.MY_ECS_SERVICE }}
-  ECS_CLUSTER: ${{ secrets.MY_ECS_CLUSTER }}
-  ECS_TASK_DEFINITION: ${{ secrets.MY_ECS_TASK_DEFINITION }}
-  CONTAINER_NAME: ${{ secrets.MY_CONTAINER_NAME }}
+  AWS_REGION: ${{ vars.MY_AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.MY_ECR_REPOSITORY }}
+  ECS_SERVICE: ${{ vars.MY_ECS_SERVICE }}
+  ECS_CLUSTER: ${{ vars.MY_ECS_CLUSTER }}
+  ECS_TASK_DEFINITION: ${{ vars.MY_ECS_TASK_DEFINITION }}
+  CONTAINER_NAME: ${{ vars.MY_CONTAINER_NAME }}
 
 permissions:
   contents: read
