@@ -4,4 +4,6 @@ numpy
 scikit-learn
 dill
 flask
+fastapi
+uvicorn[standard]
 #-e .
