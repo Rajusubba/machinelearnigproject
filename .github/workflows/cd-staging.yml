@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: studentperformance
   ECS_CLUSTER: descriptive-deer-b5mwh9
-  ECS_SERVICE: machinelearningproject-staging-service   # <-- create this service in ECS
+  ECS_SERVICE: machinelearningproject-service-5gipt9qd   # <-- create this service in ECS
   CONTAINER_NAME: studentperformance
   ECS_TASK_DEFINITION: aws/task-definition.json
 
