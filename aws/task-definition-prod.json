@@ -1,0 +1,33 @@
+
+{
+  "family": "machinelearningproject",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "3072",
+  "executionRoleArn": "arn:aws:iam::490841876782:role/ecsTaskExecutionRole",
+
+  "containerDefinitions": [
+    {
+      "name": "studentperformance",
+      "image": "REPLACED_BY_GITHUB_ACTION",
+      "essential": true,
+
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/machinelearningproject-prod",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
